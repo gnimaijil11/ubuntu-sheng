@@ -93,6 +93,8 @@ log "已设置 $USERNAME 与 root 的密码"
 # ---------------------------------------------------------------------------
 log "启用 NetworkManager"
 systemctl enable NetworkManager.service || warn "启用 NetworkManager 失败"
+log "启用 SSH 服务（默认开启）"
+systemctl enable ssh.service || warn "启用 ssh 失败"
 
 # ---------------------------------------------------------------------------
 # 5) 显示管理器 + 自动登录
