@@ -136,7 +136,6 @@ ExecStart=/usr/local/sbin/sheng-audio-init.sh
 WantedBy=multi-user.target
 UNIT_EOF
 systemctl enable sheng-audio-init.service || warn "启用 sheng-audio-init 失败"
-systemctl enable pd-mapper.service 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # 5) 显示管理器 + 自动登录
