@@ -240,9 +240,17 @@ install -d /etc/systemd/logind.conf.d
 printf '[Login]\nHandlePowerKey=ignore\nHandlePowerKeyLongPress=poweroff\n' > /etc/systemd/logind.conf.d/sheng-power.conf
 if [[ "$DESKTOP" == "KDE Plasma" ]]; then
   install -d "/home/$USERNAME/.config"
-  printf '[HandleButtonEvents]\npowerButtonAction=4\nlidAction=1\n' > "/home/$USERNAME/.config/powerdevilrc"
+  printf '[HandleButtonEvents]\npowerButtonAction=4\nlidAction=1\n\n[DPMS]\nEnabled=true\nIdleTime=60\n\n[General]\npausePlayersOnSuspend=false\n' > "/home/$USERNAME/.config/powerdevilrc"
   chown -R "$USERNAME:$USERNAME" "/home/$USERNAME/.config" 2>/dev/null || true
 fi
+
+# ---------------------------------------------------------------------------
+# 4e) 时区 Asia/Shanghai（UTC+8）+ 屏幕 1 分钟无操作关屏（已并入上面 powerdevilrc [DPMS] IdleTime=60）
+#     构建默认 Etc/UTC 会令本地时间差 8 小时；chroot 内用文件方式设时区（timedatectl 需 systemd）。
+# ---------------------------------------------------------------------------
+log "配置时区 Asia/Shanghai"
+ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+echo "Asia/Shanghai" > /etc/timezone
 
 # ---------------------------------------------------------------------------
 # 5) 显示管理器 + 自动登录
