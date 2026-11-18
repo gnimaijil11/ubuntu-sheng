@@ -49,7 +49,7 @@ jobs:
           cd mesa-*/
           meson setup build \
             -Dgallium-drivers=freedreno -Dvulkan-drivers= \
-            -Dplatforms=wayland,x11 -Degl=enabled -Dgbm=enabled -Dglx=dri \
+            -Dplatforms=wayland -Degl=enabled -Dgbm=enabled -Dglx=disabled \
             -Dllvm=disabled -Dshared-glapi=enabled -Dgles1=disabled -Dgles2=enabled \
             -Dopengl=true -Dbuildtype=release -Db_ndebug=true
           ninja -C build
