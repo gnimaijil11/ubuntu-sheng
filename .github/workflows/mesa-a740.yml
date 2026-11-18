@@ -11,24 +11,14 @@ jobs:
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            build-essential meson ninja-build pkg-config python3-mako python3-setuptools \
-            python3-packaging python3-yaml dpkg-dev git curl ca-certificates xz-utils patchelf
-      - name: Mesa lib deps
-        run: |
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            libdrm-dev libwayland-dev wayland-protocols libx11-dev libxext-dev libxdamage-dev \
-            libxfixes-dev libxcb1-dev libxcb-glx0-dev libxcb-dri2-0-dev libxcb-dri3-dev \
-            libxcb-present-dev libxcb-sync-dev libxshmfence-dev libxxf86vm-dev libxrandr-dev \
-            libglvnd-dev libelf-dev libexpat1-dev zlib1g-dev libzstd-dev libvulkan-dev \
-            libwayland-egl-backend-dev libdisplay-info-dev \
-            spirv-tools glslang-tools bison flex libudev-dev
-          for p in libsensors-dev libunwind-dev libva-dev libvdpau-dev; do \
-            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $p || true; done
-      - name: Get Ubuntu mesa source
+            build-essential dpkg-dev devscripts fakeroot quilt python3-yaml python3-mako \
+            python3-setuptools python3-packaging git curl ca-certificates xz-utils
+      - name: Build deps + mesa source
         run: |
           echo "deb-src http://archive.ubuntu.com/ubuntu resolute main universe" >> /etc/apt/sources.list
           echo "deb-src http://archive.ubuntu.com/ubuntu resolute-updates main universe" >> /etc/apt/sources.list
           apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get build-dep -y mesa
           apt-get source mesa
           ls -d mesa-*/
       - name: Apply ir3 A740 patch
@@ -44,25 +34,16 @@ jobs:
           open(f,'w').write(s.replace(old,new,1))
           print("ir3 A740 patch applied")
           PYEOF
-      - name: Build mesa (freedreno, no LLVM)
+      - name: dpkg-buildpackage (Ubuntu ABI)
         run: |
           cd mesa-*/
-          meson setup build \
-            -Dgallium-drivers=freedreno -Dvulkan-drivers= \
-            -Dplatforms=wayland -Degl=enabled -Dgbm=enabled -Dglx=disabled \
-            -Dllvm=disabled -Dshared-glapi=enabled -Dgles1=disabled -Dgles2=enabled \
-            -Dopengl=true -Dbuildtype=release -Db_ndebug=true
-          ninja -C build
-      - name: Collect artifacts
+          DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)" dpkg-buildpackage -b -us -uc -d 2>&1 | tail -40
+      - name: Collect debs
         run: |
           mkdir -p out
-          cd mesa-*/build
-          find . -name 'libgallium*.so*' -exec cp -P {} ../../out/ \;
-          find . -name '*_dri.so*' -exec cp -P {} ../../out/ \;
-          find . -name 'libvulkan_freedreno.so*' -exec cp -P {} ../../out/ \;
-          find . \( -name 'libGL.so*' -o -name 'libEGL.so*' -o -name 'libgbm.so*' -o -name 'libglapi.so*' \) -exec cp -P {} ../../out/ \;
-          cd ../../out && ls -la
+          cp ../*.deb out/ 2>/dev/null || true
+          ls -la out/
       - uses: actions/upload-artifact@v4
         with:
-          name: mesa-a740
+          name: mesa-a740-debs
           path: out/
