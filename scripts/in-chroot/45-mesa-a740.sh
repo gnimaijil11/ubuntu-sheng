@@ -5,6 +5,13 @@
 # 在 chroot 内执行:
 #   chroot "$MOUNT" /root/sheng-build/in-chroot/45-mesa-a740.sh
 set -euo pipefail
+
+# 只在 7.3.x 内核上安装（debs 系 7.3.4 ABI 编译，其他内核跳过）
+if ! ls /lib/modules/7.3.* >/dev/null 2>&1; then
+    echo "[mesa-a740] 跳过：目标内核非 7.3.x（debs ABI 唔匹配）"
+    exit 0
+fi
+
 BUILD_DIR="${BUILD_DIR:-/root/sheng-build}"
 # shellcheck source=/dev/null
 source "$BUILD_DIR/common/distro-env.sh"
