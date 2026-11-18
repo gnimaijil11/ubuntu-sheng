@@ -7,4 +7,7 @@ sddm
 konsole
 dolphin
 kate
+pipewire
+pipewire-pulse
 pipewire-alsa
+wireplumber

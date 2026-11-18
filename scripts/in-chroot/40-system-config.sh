@@ -97,6 +97,48 @@ log "启用 SSH 服务（默认开启）"
 systemctl enable ssh.service || warn "启用 ssh 失败"
 
 # ---------------------------------------------------------------------------
+# 4b) 扬声器破音修复：cs35l43 固件命名 + MI2S 路由 + 音量 80%（开机 oneshot）
+#     依据上游 docs/声音修复.md；PulseAudio 破音问题已由 PipeWire 包列表解决。
+#     回退：systemctl disable sheng-audio-init.service
+# ---------------------------------------------------------------------------
+log "安装 sheng-audio-init 破音修复服务"
+cat > /usr/local/sbin/sheng-audio-init.sh <<'AUDIO_EOF'
+#!/bin/bash
+# cs35l43 功放固件补全命名（驱动按位置名加载，缺名会加载失败→破音/无声）
+if cd /lib/firmware/cirrus 2>/dev/null; then
+  for pos in BLH BLL BRL TLH TLL TRL; do
+    cp cs35l43-dsp1-spk-prot.wmfw "cs35l43-DSP1-spk-prot-(null)-${pos}.wmfw" 2>/dev/null
+    cp cs35l43-dsp1-spk-prot.wmfw "cs35l43-DSP1-spk-prot--(null)-${pos}.wmfw" 2>/dev/null
+    cp "${pos}-cs35l43-dsp1-spk-prot.bin" "cs35l43-DSP1-spk-prot-(null)-${pos}.bin" 2>/dev/null
+    cp "${pos}-cs35l43-dsp1-spk-prot.bin" "cs35l43-DSP1-spk-prot--(null)-${pos}.bin" 2>/dev/null
+  done
+fi
+# 等声卡就绪（最多 15 秒）
+for _ in $(seq 1 15); do [ -e /proc/asound/card0 ] && break; sleep 1; done
+# 建立音频矩阵路由，音量锁 80% 防过载破音
+amixer -c 0 cset name='SECONDARY_MI2S_RX Audio Mixer MultiMedia1' 1 || true
+amixer -c 0 sset 'stream0.vol_ctrl0 MultiMedia1 Playback Volu' 80% || true
+alsactl store 0 || true
+AUDIO_EOF
+chmod +x /usr/local/sbin/sheng-audio-init.sh
+cat > /etc/systemd/system/sheng-audio-init.service <<'UNIT_EOF'
+[Unit]
+Description=Xiaomi sheng speaker amp init (cs35l43 firmware naming + MI2S route)
+After=sound.target local-fs.target
+Wants=sound.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/sheng-audio-init.sh
+
+[Install]
+WantedBy=multi-user.target
+UNIT_EOF
+systemctl enable sheng-audio-init.service || warn "启用 sheng-audio-init 失败"
+systemctl enable pd-mapper.service 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
 # 5) 显示管理器 + 自动登录
 # ---------------------------------------------------------------------------
 case "$DESKTOP" in
