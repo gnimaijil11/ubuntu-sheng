@@ -231,6 +231,20 @@ GUNIT_EOF
 systemctl enable sheng-usb-gadget.service || warn "启用 sheng-usb-gadget 失败"
 
 # ---------------------------------------------------------------------------
+# 4d) 电源键行为（MIUI 风格）：短按弹 KDE 关机菜单，长按关机
+#     logind 默认 HandlePowerKey=poweroff 会短按即关机；改为 ignore 交 KDE powerdevil
+#     弹离开菜单（powerButtonAction=4=PromptLogoutDialog），长按仍 poweroff。
+# ---------------------------------------------------------------------------
+log "配置电源键：短按关机菜单 / 长按关机"
+install -d /etc/systemd/logind.conf.d
+printf '[Login]\nHandlePowerKey=ignore\nHandlePowerKeyLongPress=poweroff\n' > /etc/systemd/logind.conf.d/sheng-power.conf
+if [[ "$DESKTOP" == "KDE Plasma" ]]; then
+  install -d "/home/$USERNAME/.config"
+  printf '[HandleButtonEvents]\npowerButtonAction=4\nlidAction=1\n' > "/home/$USERNAME/.config/powerdevilrc"
+  chown -R "$USERNAME:$USERNAME" "/home/$USERNAME/.config" 2>/dev/null || true
+fi
+
+# ---------------------------------------------------------------------------
 # 5) 显示管理器 + 自动登录
 # ---------------------------------------------------------------------------
 case "$DESKTOP" in
