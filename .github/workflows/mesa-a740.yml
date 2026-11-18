@@ -20,6 +20,7 @@ jobs:
             libxfixes-dev libxcb1-dev libxcb-glx0-dev libxcb-dri2-0-dev libxcb-dri3-dev \
             libxcb-present-dev libxcb-sync-dev libxshmfence-dev libxxf86vm-dev libxrandr-dev \
             libglvnd-dev libelf-dev libexpat1-dev zlib1g-dev libzstd-dev libvulkan-dev \
+            libwayland-egl-backend-dev libdisplay-info-dev \
             spirv-tools glslang-tools bison flex libudev-dev
           for p in libsensors-dev libunwind-dev libva-dev libvdpau-dev; do \
             DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $p || true; done
@@ -47,7 +48,7 @@ jobs:
         run: |
           cd mesa-*/
           meson setup build \
-            -Dgallium-drivers=freedreno -Dvulkan-drivers=freedreno \
+            -Dgallium-drivers=freedreno -Dvulkan-drivers= \
             -Dplatforms=wayland,x11 -Degl=enabled -Dgbm=enabled -Dglx=dri \
             -Dllvm=disabled -Dshared-glapi=enabled -Dgles1=disabled -Dgles2=enabled \
             -Dopengl=true -Dbuildtype=release -Db_ndebug=true
