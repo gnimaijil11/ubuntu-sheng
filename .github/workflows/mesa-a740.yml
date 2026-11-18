@@ -12,7 +12,7 @@ jobs:
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             build-essential meson ninja-build pkg-config python3-mako python3-setuptools \
-            python3-packaging dpkg-dev git curl ca-certificates xz-utils patchelf
+            python3-packaging python3-yaml dpkg-dev git curl ca-certificates xz-utils patchelf
       - name: Mesa lib deps
         run: |
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
