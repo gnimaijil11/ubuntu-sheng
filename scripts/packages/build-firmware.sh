@@ -31,6 +31,21 @@ rm -rf "$BUILD/usr/lib/firmware/.git" \
        "$BUILD/usr/lib/firmware/.github" \
        "$BUILD/usr/lib/firmware/.gitignore"
 
+# WCN7850 WiFi 修复：sheng-firmware 仓嘅 amss.bin 系错版本（BHI Image transfer
+# failed / ERROR_CODE 0xef0a0104 / failed to power up -110）。用官方 linux-firmware
+# 嘅 WCN7850/hw2.0 固件覆盖（amss.bin ~6.09MB、board-2.bin ~2.4MB 全量）。
+WCN_DIR="$BUILD/usr/lib/firmware/ath12k/WCN7850/hw2.0"
+if [ -d "$WCN_DIR" ]; then
+  for f in amss.bin board-2.bin m3.bin; do
+    if curl -fsSL --retry 3 --max-time 120 -o "$WCN_DIR/$f" \
+        "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/ath12k/WCN7850/hw2.0/$f"; then
+      echo "[build-firmware] 官方 WCN7850 $f 已覆盖 ($(du -h "$WCN_DIR/$f" | cut -f1))"
+    else
+      echo "[build-firmware] 警告：官方 $f 下载失败，保留 sheng-firmware 原版" >&2
+    fi
+  done
+fi
+
 # 固件 blob 必须保持原样：不做 strip、不压缩
 find "$BUILD" -type d -exec chmod 755 {} +
 find "$BUILD" -type f -exec chmod 644 {} +
