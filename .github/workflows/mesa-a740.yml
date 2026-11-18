@@ -37,11 +37,12 @@ jobs:
       - name: dpkg-buildpackage (Ubuntu ABI)
         run: |
           cd mesa-*/
-          DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)" dpkg-buildpackage -b -us -uc -d 2>&1 | tail -40
+          DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)" dpkg-buildpackage -b -us -uc -d
       - name: Collect debs
         run: |
           mkdir -p out
-          cp ../*.deb out/ 2>/dev/null || true
+          cp *.deb out/ 2>/dev/null || true
+          find . -maxdepth 1 -name '*.deb' -exec cp {} out/ \; 2>/dev/null
           ls -la out/
       - uses: actions/upload-artifact@v4
         with:
