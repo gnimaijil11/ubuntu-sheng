@@ -7,18 +7,22 @@ jobs:
     container:
       image: ubuntu:26.04
     steps:
-      - name: Install build deps
+      - name: Core build tools
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             build-essential meson ninja-build pkg-config python3-mako python3-setuptools \
-            git curl ca-certificates xz-utils patchelf \
+            python3-packaging dpkg-dev git curl ca-certificates xz-utils patchelf
+      - name: Mesa lib deps
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             libdrm-dev libwayland-dev wayland-protocols libx11-dev libxext-dev libxdamage-dev \
             libxfixes-dev libxcb1-dev libxcb-glx0-dev libxcb-dri2-0-dev libxcb-dri3-dev \
             libxcb-present-dev libxcb-sync-dev libxshmfence-dev libxxf86vm-dev libxrandr-dev \
-            libglvnd-dev libelf-dev libexpat1-dev zlib1g-dev libzstd-dev libsensors4-dev \
-            libvulkan-dev spirv-tools glslang-tools bison flex libclc-19-dev clang-19 libclang-19-dev llvm-19-dev \
-            libudev-dev libunwind-dev libva-dev libvdpau-dev libomxil-bellagio-dev
+            libglvnd-dev libelf-dev libexpat1-dev zlib1g-dev libzstd-dev libvulkan-dev \
+            spirv-tools glslang-tools bison flex libudev-dev
+          for p in libsensors-dev libunwind-dev libva-dev libvdpau-dev; do \
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $p || true; done
       - name: Get Ubuntu mesa source
         run: |
           echo "deb-src http://archive.ubuntu.com/ubuntu resolute main universe" >> /etc/apt/sources.list
@@ -30,23 +34,22 @@ jobs:
         run: |
           cd mesa-*/
           python3 - <<'PYEOF'
-          import glob,re
+          import glob
           f=glob.glob('src/freedreno/ir3/ir3_nir_analyze_ubo_ranges.c')[0]
           s=open(f).read()
           old="      if (rsrc && nir_src_is_const(rsrc->src[0])) {"
           new="      if (rsrc && nir_src_is_const(rsrc->src[0]) &&\n          nir_src_is_const(instr->src[1])) {"
           assert old in s, "pattern not found"
-          s=s.replace(old,new,1)
-          open(f,'w').write(s)
+          open(f,'w').write(s.replace(old,new,1))
           print("ir3 A740 patch applied")
           PYEOF
-      - name: Build mesa (freedreno)
+      - name: Build mesa (freedreno, no LLVM)
         run: |
           cd mesa-*/
           meson setup build \
             -Dgallium-drivers=freedreno -Dvulkan-drivers=freedreno \
             -Dplatforms=wayland,x11 -Degl=enabled -Dgbm=enabled -Dglx=dri \
-            -Dllvm=enabled -Dshared-glapi=enabled -Dgles1=disabled -Dgles2=enabled \
+            -Dllvm=disabled -Dshared-glapi=enabled -Dgles1=disabled -Dgles2=enabled \
             -Dopengl=true -Dbuildtype=release -Db_ndebug=true
           ninja -C build
       - name: Collect artifacts
@@ -56,7 +59,7 @@ jobs:
           find . -name 'libgallium*.so*' -exec cp -P {} ../../out/ \;
           find . -name '*_dri.so*' -exec cp -P {} ../../out/ \;
           find . -name 'libvulkan_freedreno.so*' -exec cp -P {} ../../out/ \;
-          find . -name 'libGL.so*' -o -name 'libEGL.so*' -o -name 'libgbm.so*' -o -name 'libglapi.so*' | xargs -I{} cp -P {} ../../out/ 2>/dev/null
+          find . \( -name 'libGL.so*' -o -name 'libEGL.so*' -o -name 'libgbm.so*' -o -name 'libglapi.so*' \) -exec cp -P {} ../../out/ \;
           cd ../../out && ls -la
       - uses: actions/upload-artifact@v4
         with:
