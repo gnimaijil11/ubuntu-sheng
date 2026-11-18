@@ -23,11 +23,11 @@ echo "[mesa-a740] 下载 patched Mesa debs..."
 command -v curl >/dev/null 2>&1 || apt-get install -y curl
 command -v unzip >/dev/null 2>&1 || apt-get install -y unzip
 cd /tmp
-curl -fsSL -o mesa-debs.zip "$URL"
+curl -fsSL --retry 3 --retry-delay 10 -o mesa-debs.zip "$URL" || { echo "[mesa-a740] download failed, skipping"; exit 0; }
 rm -rf /tmp/mesa-debs
 unzip -o -q mesa-debs.zip -d /tmp/mesa-debs
 echo "[mesa-a740] dpkg -i 强制安装（同版本号）..."
-dpkg -i /tmp/mesa-debs/*.deb || apt-get install -f -y
+dpkg -i /tmp/mesa-debs/*.deb || { echo "[mesa-a740] dpkg failed, continuing"; true; } || apt-get install -f -y
 echo "[mesa-a740] 切换硬件 GL（KWIN_COMPOSE=O2，覆盖软件兜底）..."
 mkdir -p /etc/systemd/user/plasma-kwin_wayland.service.d /etc/systemd/user/plasma-plasmashell.service.d
 printf '[Service]\nEnvironment=KWIN_COMPOSE=O2\n' > /etc/systemd/user/plasma-kwin_wayland.service.d/sheng-software.conf
