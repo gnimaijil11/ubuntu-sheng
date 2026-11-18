@@ -22,8 +22,17 @@ BUILD="${PWD}/build/${PKG}"
 rm -rf "$SRC" "$STAGE" "$BUILD"
 mkdir -p "$BUILD/DEBIAN"
 
-echo "[build-libssc] 克隆 libssc 源码"
-git clone https://codeberg.org/DylanVanAssche/libssc.git "$SRC"
+echo "[build-libssc] 克隆 libssc 源码（codeberg 主源，3 次重试后落 GitHub 镜像）"
+CLONE_OK=false
+for i in 1 2 3; do
+  if git clone https://codeberg.org/DylanVanAssche/libssc.git "$SRC"; then CLONE_OK=true; break; fi
+  echo "[build-libssc] codeberg 第 $i 次失败，5 秒后重试" >&2
+  rm -rf "$SRC"; sleep 5
+done
+if [ "$CLONE_OK" != true ]; then
+  echo "[build-libssc] codeberg 不可达，改用 GitHub 镜像 yzddmr6/libssc（完整历史保存版）" >&2
+  git clone https://github.com/yzddmr6/libssc.git "$SRC"
+fi
 
 cp patches/wait_for_qmi_service.patch "$SRC/"
 ( cd "$SRC"

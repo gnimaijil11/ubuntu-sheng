@@ -19,3 +19,5 @@ pipewire-pulse
 pipewire-alsa
 wireplumber
 fonts-noto-cjk
+easyeffects
+lsp-plugins-lv2
