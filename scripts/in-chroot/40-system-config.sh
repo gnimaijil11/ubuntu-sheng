@@ -71,9 +71,11 @@ fi
 # 3) 用户与密码（上游语义：用户与 root 同密码）
 # ---------------------------------------------------------------------------
 if ! id "$USERNAME" >/dev/null 2>&1; then
-  log "创建用户: $USERNAME（加入 sudo 组）"
-  useradd -m -s /bin/bash -G sudo "$USERNAME"
+  log "创建用户: $USERNAME（加入 sudo/video/render/input/plugdev 组）"
+  useradd -m -s /bin/bash -G sudo,video,render,input,plugdev "$USERNAME"
 fi
+# GPU/输入设备权限：video/render 组缺失会让 kwin 开不了 /dev/dri → 桌面崩溃循环
+usermod -aG video,render,input,plugdev "$USERNAME" 2>/dev/null || true
 
 # 密码由 workflow 写入 /root/build.pw（600），读完即删，避免出现在命令行参数里
 if [[ -z "${ROOTFS_PASSWORD:-}" && -f /root/build.pw ]]; then
@@ -164,6 +166,69 @@ ExecStart=/usr/local/sbin/sheng-audio-init.sh
 WantedBy=multi-user.target
 UNIT_EOF
 systemctl enable sheng-audio-init.service || warn "启用 sheng-audio-init 失败"
+
+# ---------------------------------------------------------------------------
+# 4c) sheng 桌面稳定性 + USB NCM 网络（2026-11-18 实测修复）
+#     A740 库存 Mesa freedreno GL 令 kwin OpenGL scene 崩溃（EGL context 后死）。
+#     权宜：KWIN_COMPOSE=Q（QPainter 软件合成）+ QT_QUICK_BACKEND=software，桌面稳定可用。
+#     硬件加速需 patched Mesa（Turnip sparse-sync / ir3 bindless 补丁），后续单独搞。
+#     NCM gadget：开机即 USB 虚拟网卡（192.168.7.1），无 WiFi/黑屏都可 SSH 远程诊断。
+# ---------------------------------------------------------------------------
+if [[ "$DESKTOP" == "KDE Plasma" ]]; then
+  log "配置 KDE 软件渲染（避开 A740 freedreno GL 崩溃）"
+  install -d /etc/systemd/user/plasma-kwin_wayland.service.d
+  printf '[Service]\nEnvironment=KWIN_COMPOSE=Q\n' > /etc/systemd/user/plasma-kwin_wayland.service.d/sheng-software.conf
+  install -d /etc/systemd/user/plasma-plasmashell.service.d
+  printf '[Service]\nEnvironment=QT_QUICK_BACKEND=software\n' > /etc/systemd/user/plasma-plasmashell.service.d/sheng-software.conf
+  grep -q QT_QUICK_BACKEND /etc/environment 2>/dev/null || echo 'QT_QUICK_BACKEND=software' >> /etc/environment
+fi
+
+log "安装 USB NCM gadget 网络服务（headless SSH 通道）"
+cat > /usr/local/sbin/sheng-usb-gadget.sh <<'GADGET_EOF'
+#!/bin/bash
+set -x
+exec 2>/tmp/sheng-usb-gadget.err
+modprobe libcomposite
+G=/sys/kernel/config/usb_gadget/sheng
+mkdir -p "$G"; cd "$G" || exit 1
+echo 0x1d6b > idVendor; echo 0x0104 > idProduct
+echo 0x0100 > bcdDevice; echo 0x0200 > bcdUSB
+mkdir -p strings/0x409
+echo "xiaomi-sheng" > strings/0x409/product
+echo "sheng0002" > strings/0x409/serialnumber
+echo "Hermes" > strings/0x409/manufacturer
+mkdir -p configs/c.1/strings/0x409
+echo "NCM" > configs/c.1/strings/0x409/configuration
+echo 250 > configs/c.1/MaxPower
+mkdir -p functions/ncm.usb0
+echo "02:00:00:00:00:05" > functions/ncm.usb0/host_addr
+echo "02:00:00:00:00:06" > functions/ncm.usb0/dev_addr
+ln -s functions/ncm.usb0 configs/c.1/
+for i in $(seq 1 30); do UDC=$(ls /sys/class/udc 2>/dev/null | head -1); [ -n "$UDC" ] && break; sleep 1; done
+[ -z "$UDC" ] && exit 1
+echo "$UDC" > UDC
+for i in $(seq 1 15); do IF=$(ls /sys/class/net | grep -E '^usb' | head -1); [ -n "$IF" ] && break; sleep 1; done
+[ -z "$IF" ] && IF=usb0
+ip addr add 192.168.7.1/24 dev "$IF" 2>/dev/null
+ip link set "$IF" up
+exit 0
+GADGET_EOF
+chmod +x /usr/local/sbin/sheng-usb-gadget.sh
+cat > /etc/systemd/system/sheng-usb-gadget.service <<'GUNIT_EOF'
+[Unit]
+Description=Xiaomi sheng USB NCM gadget network (headless SSH)
+After=systemd-modules-load.service local-fs.target
+Before=network-pre.target ssh.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/sheng-usb-gadget.sh
+
+[Install]
+WantedBy=multi-user.target
+GUNIT_EOF
+systemctl enable sheng-usb-gadget.service || warn "启用 sheng-usb-gadget 失败"
 
 # ---------------------------------------------------------------------------
 # 5) 显示管理器 + 自动登录
