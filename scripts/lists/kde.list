@@ -11,3 +11,5 @@ pipewire
 pipewire-pulse
 pipewire-alsa
 wireplumber
+easyeffects
+lsp-plugins-lv2
