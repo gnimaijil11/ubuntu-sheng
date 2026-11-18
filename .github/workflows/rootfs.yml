@@ -398,6 +398,8 @@ jobs:
           BOOT_MODE='${{ inputs.boot_mode }}'
           PARTITION_LABEL='${{ steps.parse.outputs.label }}'
           KERNEL_SOURCE='${{ inputs.kernel_source }}'
+          WIFI_SSID='${{ secrets.WIFI_SSID }}'
+          WIFI_PSK='${{ secrets.WIFI_PSK }}'
           EOF
           sudo chmod 600 "$ROOTFS_MOUNT/root/build.env"
           echo "build.env 内容："
@@ -439,6 +441,7 @@ jobs:
         run: |
           sudo rm -f "$ROOTFS_MOUNT/etc/resolv.conf" 2>/dev/null || true
           sudo rm -f "$ROOTFS_MOUNT/root/build.pw" 2>/dev/null || true
+          sudo rm -f "$ROOTFS_MOUNT/root/build.env" 2>/dev/null || true
           # 构建脚本与 deb 载荷不该留在出厂镜像里（90-verify 已跑完，可以安全删除）
           sudo rm -rf "$ROOTFS_MOUNT/root/sheng-build" 2>/dev/null || true
           sudo rm -rf "$ROOTFS_MOUNT/tmp/debs" 2>/dev/null || true

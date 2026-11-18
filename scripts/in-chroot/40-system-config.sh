@@ -93,6 +93,34 @@ log "已设置 $USERNAME 与 root 的密码"
 # ---------------------------------------------------------------------------
 log "启用 NetworkManager"
 systemctl enable NetworkManager.service || warn "启用 NetworkManager 失败"
+
+# 预置 WiFi（由 workflow secrets 传入；开机自动连接，便于 SSH 远程调试）
+if [[ -n "${WIFI_SSID:-}" && -n "${WIFI_PSK:-}" ]]; then
+  log "预置 WiFi: $WIFI_SSID"
+  install -d -m 700 /etc/NetworkManager/system-connections
+  cat > "/etc/NetworkManager/system-connections/${WIFI_SSID}.nmconnection" <<EOF
+[connection]
+id=${WIFI_SSID}
+type=wifi
+autoconnect=true
+autoconnect-priority=10
+
+[wifi]
+ssid=${WIFI_SSID}
+mode=infrastructure
+
+[wifi-security]
+key-mgmt=wpa-psk
+psk=${WIFI_PSK}
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto
+EOF
+  chmod 600 "/etc/NetworkManager/system-connections/${WIFI_SSID}.nmconnection"
+fi
 log "启用 SSH 服务（默认开启）"
 systemctl enable ssh.service || warn "启用 ssh 失败"
 
