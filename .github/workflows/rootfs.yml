@@ -433,8 +433,6 @@ jobs:
       - name: "[chroot] Configure System"
         run: sudo chroot "$ROOTFS_MOUNT" /root/sheng-build/in-chroot/40-system-config.sh
 
-      - name: "[chroot] Install Mesa A740 (hardware GL)"
-        run: sudo chroot "$ROOTFS_MOUNT" /root/sheng-build/in-chroot/45-mesa-a740.sh
 
       - name: "[chroot] Verify Image"
         run: sudo chroot "$ROOTFS_MOUNT" /root/sheng-build/in-chroot/90-verify.sh
