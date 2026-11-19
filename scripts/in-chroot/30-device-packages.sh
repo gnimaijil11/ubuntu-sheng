@@ -81,3 +81,19 @@ if [[ -f /usr/lib/systemd/system/sheng-devauth.service ]]; then
 fi
 
 log "设备包安装完成"
+
+# --- WiFi 官方固件覆盖（WCN7850 hw2.0，2026-11-19 真机实证）---
+# ianchb/sheng-firmware 仓嘅 amss/board-2 系错版本（BHI ERROR_CODE 0xef0a0104 / power up -110），
+# 用官方 linux-firmware 版本覆盖（由真机 /lib/firmware 抽出，SHA256 已核对）。
+FW_SRC="$BUILD_DIR/in-chroot/wifi-fw"
+FW_DST="/lib/firmware/ath12k/WCN7850/hw2.0"
+[[ -d "$FW_SRC" ]] || die "WiFi 固件目录缺失: $FW_SRC"
+install -d "$FW_DST"
+for f in amss.bin board-2.bin m3.bin; do
+  [[ -f "$FW_SRC/$f" ]] || die "WiFi 固件缺失: $FW_SRC/$f"
+  install -m644 "$FW_SRC/$f" "$FW_DST/$f"
+done
+[[ "$(stat -c%s "$FW_DST/amss.bin")"    == "6090816" ]] || die "amss.bin 大小唔啱（期望 6090816）"
+[[ "$(stat -c%s "$FW_DST/board-2.bin")" == "2431968" ]] || die "board-2.bin 大小唔啱（期望 2431968）"
+[[ "$(stat -c%s "$FW_DST/m3.bin")"      == "299660"  ]] || die "m3.bin 大小唔啱（期望 299660）"
+log "WiFi 官方固件已覆盖: amss 6090816 / board-2 2431968 / m3 299660"
